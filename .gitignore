@@ -1,0 +1,48 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+.eggs/
+build/
+dist/
+pip-wheel-metadata/
+.venv/
+venv/
+ENV/
+env/
+.python-version
+
+# --- Jupyter ---
+.ipynb_checkpoints/
+# Optional: outputs from notebook conversions
+*.nbconvert.ipynb
+
+# --- Data / artifacts ---
+data/uploads/*
+!data/uploads/.gitkeep
+
+# --- Config / secrets ---
+.env
+.env.*
+config/gcp_service_account.json  # Google service account key (keep secret!)
+
+# --- Docker / local overrides ---
+docker-compose.override.yml
+.envrc
+
+# --- Logs / cache ---
+*.log
+.cache/
+.mypy_cache/
+.pytest_cache/
+pytest_cache/
+.DS_Store
+Thumbs.db
+
+# --- IDEs ---
+# JetBrains (PyCharm / IntelliJ)
+.idea/
+*.iml
+# VS Code (if you ever use it)
+.vscode/
