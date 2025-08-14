@@ -1,0 +1,33 @@
+{
+  "currency": "USD",
+  "work_day_hours": 8,
+  "constraints": {
+    "max_budget_usd": 120000,
+    "max_duration_days": 112,
+    "hard_deadline": "2025-12-31",
+    "must_use": ["Java 21", "Spring Boot", "Kafka"],
+    "max_daily_team": 10
+  },
+  "daily_rates": {
+    "senior_dev": 720,
+    "mid_dev": 560,
+    "junior_dev": 400,
+    "qa": 480,
+    "devops": 800,
+    "pm": 760,
+    "kafka_engineer": 880,
+    "security_lead": 960
+  },
+  "daily_cloud": {
+    "aws_ec2_small": 4,
+    "aws_rds_postgres": 48,
+    "aws_kafka_msk": 72,
+    "azure_aks_node": 36,
+    "gcp_gke_autopilot": 32
+  },
+  "daily_other": {
+    "monitoring": 15,
+    "ci_cd": 10,
+    "security_tools": 20
+  }
+}

@@ -1,0 +1,26 @@
+langgraph>=0.2.0
+langchain-core>=0.2.0
+langchain-openai>=0.1.0
+jupyterlab>=4.0.0
+pymupdf>=1.23.0
+ipywidgets>=8.0.0
+matplotlib>=3.7.0
+pandas>=2.0.0
+
+# For Data Scientist Agent
+numpy>=1.24.0
+scipy>=1.10.0
+scikit-learn>=1.3.0
+statsmodels>=0.14.0
+
+# Google Sheets export
+gspread>=5.10.0
+oauth2client>=4.1.3
+
+# API
+fastapi>=0.111.0
+uvicorn[standard]>=0.30.0
+pydantic>=2.6.0
+
+# CLI colored output
+colorama>=0.4.0

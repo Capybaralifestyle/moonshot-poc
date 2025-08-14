@@ -1,0 +1,43 @@
+services:
+  jupyter:
+    build: .
+    container_name: moonshot-jupyter
+    ports:
+      - "8888:8888"
+    volumes:
+      - ./:/workspace
+    environment:
+      - JUPYTER_TOKEN=agent123
+      - MOONSHOT_API_KEY=${MOONSHOT_API_KEY}
+      - SHEETS_EXPORT_ENABLED=${SHEETS_EXPORT_ENABLED}
+      - SHEETS_EXPORT_NAME=${SHEETS_EXPORT_NAME}
+      - GCP_SERVICE_ACCOUNT_JSON=${GCP_SERVICE_ACCOUNT_JSON}
+      - SHEETS_WORKSHEET_INDEX=${SHEETS_WORKSHEET_INDEX}
+      - DATASET_PATH=${DATASET_PATH}
+    command: >
+      jupyter lab
+      --ip=0.0.0.0
+      --port=8888
+      --no-browser
+      --allow-root
+      --NotebookApp.token=agent123
+
+  api:
+    build: .
+    container_name: moonshot-api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./:/workspace
+    environment:
+      - MOONSHOT_API_KEY=${MOONSHOT_API_KEY}
+      - SHEETS_EXPORT_ENABLED=${SHEETS_EXPORT_ENABLED}
+      - SHEETS_EXPORT_NAME=${SHEETS_EXPORT_NAME}
+      - GCP_SERVICE_ACCOUNT_JSON=${GCP_SERVICE_ACCOUNT_JSON}
+      - SHEETS_WORKSHEET_INDEX=${SHEETS_WORKSHEET_INDEX}
+      - DATASET_PATH=${DATASET_PATH}
+    command: >
+      uvicorn src.api.main:app
+      --host 0.0.0.0
+      --port 8000
+      --workers 2
