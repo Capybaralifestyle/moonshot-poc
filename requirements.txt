@@ -24,3 +24,9 @@ pydantic>=2.6.0
 
 # CLI colored output
 colorama>=0.4.0
+
+# Additional dependencies for the SaaS API
+# python-multipart enables FastAPI to handle file uploads via form data.
+python-multipart>=0.0.5
+# aiofiles is used by FastAPI's StaticFiles to serve the frontend assets asynchronously.
+aiofiles>=23.0.0
