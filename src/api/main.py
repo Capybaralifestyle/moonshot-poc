@@ -120,10 +120,21 @@ app.add_middleware(
 
 
 class RunRequest(BaseModel):
-    description: str = Field(..., description="High-level project description for the agents.")
+    description: str = Field(
+        ...,
+        description="High‑level project description for the agents."
+    )
+    dataset_id: Optional[str] = Field(
+        None,
+        description=(
+            "ID of a previously uploaded dataset.  If provided, the data‑driven "
+            "ML agent will be included using the dataset at runtime.  When omitted, "
+            "only the LLM‑based agents run."
+        )
+    )
     export_enabled: Optional[bool] = Field(
         None,
-        description="Override SHEETS_EXPORT_ENABLED for this request only."
+        description="Override the Google Sheets export flag for this run only."
     )
 
 
@@ -153,28 +164,57 @@ def list_agents():
 
 
 @app.post("/run", response_model=RunResponse)
-def run(req: RunRequest, authorization: Optional[str] = Header(None)):
-    """Run the multi-agent orchestrator on a plain description without a dataset.
+def run(req: RunRequest, authorization: Optional[str] = Header(None)) -> RunResponse:
+    """Run the multi‑agent orchestrator on a project description.
 
-    If a valid Supabase JWT is supplied in the Authorization header, the results
-    will be persisted to the `project_runs` table along with the user ID.
+    When ``dataset_id`` is supplied, the API sets ``DATASET_PATH`` and
+    ``DOMAIN_COLUMN`` (if provided during upload) in the environment and
+    includes the data‑driven machine‑learning agent.  When ``dataset_id`` is
+    omitted or empty, only the LLM‑based agents run.  If a valid Supabase JWT
+    is supplied in the ``Authorization`` header, the results will be
+    persisted to the ``project_runs`` table along with the user ID.
     """
     # Determine the current user from the Supabase token (if present)
     user = _get_user_from_token(authorization)
 
-    def noop_log(agent, prompt, resp):
+    # Prepare environment variables based on dataset selection
+    dataset_id = (req.dataset_id or "").strip() if req.dataset_id else ""
+    include_dataset = False
+    if dataset_id:
+        # Validate that the dataset exists
+        dataset_info = _datasets.get(dataset_id)
+        if not dataset_info:
+            raise HTTPException(status_code=404, detail="Dataset not found")
+        # Set environment variables for DatasetMLAgent
+        os.environ["DATASET_PATH"] = dataset_info["path"]
+        if dataset_info.get("domain_column"):
+            os.environ["DOMAIN_COLUMN"] = dataset_info["domain_column"] or ""
+        else:
+            # Remove any previously set domain column
+            if "DOMAIN_COLUMN" in os.environ:
+                del os.environ["DOMAIN_COLUMN"]
+        include_dataset = True
+    else:
+        # Ensure no dataset path remains from previous requests
+        if "DATASET_PATH" in os.environ:
+            del os.environ["DATASET_PATH"]
+        if "DOMAIN_COLUMN" in os.environ:
+            del os.environ["DOMAIN_COLUMN"]
+
+    def noop_log(agent: str, prompt: str, resp: str) -> None:
         # keep logs server-side only for now; you can store or stream if needed
         pass
 
-    orch = VerboseOrchestrator(on_log=noop_log)
+    # Instantiate the orchestrator with dataset inclusion determined above
+    orch = VerboseOrchestrator(on_log=noop_log, include_dataset_agent=include_dataset)
     # Per-request export override, if provided
     if req.export_enabled is not None:
         orch._sheets_enabled = bool(req.export_enabled)
 
     try:
         results = orch.run(req.description)
-        # Persist the results for the authenticated user
-        _persist_run(user, req.description, None, results)
+        # Persist the results for the authenticated user along with the dataset
+        _persist_run(user, req.description, dataset_id if dataset_id else None, results)
         return RunResponse(results=results)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -218,48 +258,6 @@ def list_datasets() -> List[str]:
     return list(_datasets.keys())
 
 
-class ProjectRunRequest(BaseModel):
-    description: str = Field(..., description="High-level project description for the agents.")
-    dataset_id: str = Field(..., description="ID of a previously uploaded dataset.")
-    export_enabled: Optional[bool] = Field(None, description="Override export flag for this run.")
-
-
-@app.post("/projects/run")
-def run_project(req: ProjectRunRequest, authorization: Optional[str] = Header(None)) -> Dict[str, Any]:
-    """Run the orchestrator on a description using a specific dataset.
-
-    The dataset must be uploaded first via /datasets.  If the dataset was
-    uploaded with a domain column, the environment variable DOMAIN_COLUMN is
-    set accordingly for this run.  When a valid Supabase JWT is supplied in
-    the Authorization header, the results will be persisted along with the
-    dataset and description.
-    """
-    dataset_info = _datasets.get(req.dataset_id)
-    if not dataset_info:
-        raise HTTPException(status_code=404, detail="Dataset not found")
-    # Determine the current user from the Supabase token (if present)
-    user = _get_user_from_token(authorization)
-    # Set environment variables for this run
-    os.environ["DATASET_PATH"] = dataset_info["path"]
-    if dataset_info.get("domain_column"):
-        os.environ["DOMAIN_COLUMN"] = dataset_info["domain_column"]
-    else:
-        # Remove any previous domain column
-        if "DOMAIN_COLUMN" in os.environ:
-            del os.environ["DOMAIN_COLUMN"]
-    # Execute orchestrator
-    def noop_log(agent, prompt, resp):
-        pass
-    orch = VerboseOrchestrator(on_log=noop_log)
-    if req.export_enabled is not None:
-        orch._sheets_enabled = bool(req.export_enabled)
-    try:
-        results = orch.run(req.description)
-        # Persist the results for the authenticated user along with the dataset id
-        _persist_run(user, req.description, req.dataset_id, results)
-        return {"results": results}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ---- Persistence endpoints ----

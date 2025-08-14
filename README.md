@@ -1,16 +1,18 @@
-# Moonshot Alpha v0.1
+# Moonshot Alpha v0.2
 
 Moonshot Alpha is a modular, multi‑agent framework for **planning and estimating complex software projects**.  It combines conversational Large Language Model (LLM) prompts with conventional machine‑learning techniques to produce actionable **architectural plans**, **project timelines**, **cost estimates**, **security recommendations**, and more.  Version 0.1 (Alpha) extends the original proof‑of‑concept with a **data‑driven estimator**, exploratory data analysis tools, a simple SaaS web interface, and optional **Supabase persistence with Google authentication**.  The goal of this release is to provide a ready‑to‑run reference implementation that can be run locally or in Docker for experimentation, prototyping and education.
+
+**What’s new in v0.2:** This release introduces an improved orchestrator where the data‑driven estimator is *optional* – you can run the agents purely on a text description or optionally provide a dataset to enrich the cost model.  The API and UI now use a single endpoint for all runs, simplifying the workflow while still supporting dataset uploads and Supabase persistence.
 
 ## Features
 
 * **Multi‑agent orchestration** – Runs nine LLM‑driven agents and one machine‑learning agent in parallel to produce a holistic project plan.  Each agent returns structured JSON for easy integration.
-* **Data‑driven cost estimation** – `DatasetMLAgent` loads CSV or ARFF datasets containing an `effort` column and evaluates multiple regression algorithms (Random Forest, Extra Trees, Gradient Boosting, Linear Regression).  It reports RMSE/MAE metrics, highlights top features, computes prediction intervals from residuals and flags potential outliers.  If a `DOMAIN_COLUMN` is specified, the agent trains separate models for each distinct domain value and reports per‑domain metrics.
+* **Data‑driven cost estimation (optional)** – When provided with a CSV or ARFF dataset containing an `effort` column, the `DatasetMLAgent` evaluates multiple regression algorithms (Random Forest, Extra Trees, Gradient Boosting, Linear Regression).  It reports RMSE/MAE metrics, highlights top features, computes prediction intervals from residuals and flags potential outliers.  If a `DOMAIN_COLUMN` is specified, the agent trains separate models for each distinct domain value and reports per‑domain metrics.  When no dataset is provided, only the LLM‑based agents run and the ML agent is skipped.
 * **Exploratory data analysis (EDA)** – `cli_eda.py` prints dataset shape, column types, missing values, descriptive statistics, top numeric correlations, domain distributions and IsolationForest‑based outliers with colourised output.
 * **Cross‑platform CLI** – Scripts for running all agents on a project description (`cli.py`), invoking the data‑driven estimator (`cli_dataset.py`) and running EDA (`cli_eda.py`).  These tools print colourised logs to the terminal.
-* **REST API** – A FastAPI service exposes endpoints for health checks, listing agents, running the orchestrator, uploading datasets, running with a specific dataset and (optionally) exporting results to Google Sheets.
-* **SaaS Web UI** – A simple front‑end served from the API at `/ui`.  Users can upload datasets, select a domain column, provide a project description and run the multi‑agent orchestrator directly from the browser.  The UI includes Google authentication via Supabase and displays the latest predictions for each user.
-* **Supabase persistence (optional)** – When configured, results are **persisted per user** to a Supabase table after each run.  Users authenticate using Google OAuth via Supabase; the API verifies their JSON Web Token (JWT) and stores the description, dataset ID, user ID and JSON results in a `project_runs` table.  A new API endpoint (`/projects/latest`) returns the most recent prediction for each description/dataset combination for the authenticated user.
+* **REST API** – A FastAPI service exposes endpoints for health checks, listing agents, uploading datasets, running the orchestrator (with or without a dataset) and (optionally) exporting results to Google Sheets.  A single `/run` endpoint accepts an optional `dataset_id` parameter to include the data‑driven estimator.
+* **SaaS Web UI** – A simple front‑end served from the API at `/ui`.  Users can upload optional datasets (and specify a domain column), provide a project description and run the multi‑agent orchestrator directly from the browser.  If no dataset is selected, the cost estimator runs solely on the description.  The UI includes Google authentication via Supabase and displays the latest predictions for each user.
+* **Supabase persistence (optional)** – When configured, results are **persisted per user** to a Supabase table after each run.  Users authenticate using Google OAuth via Supabase; the API verifies their JSON Web Token (JWT) and stores the description, dataset ID (if any), user ID and JSON results in a `project_runs` table.  The endpoint (`/projects/latest`) returns the most recent prediction for each description/dataset combination for the authenticated user.
 * **Dockerised deployment** – A `Dockerfile` and `docker-compose.yml` build reproducible images for the CLI/Jupyter (port 8888) and API services (port 8000).  No local Python installation is required.
 
 ## Repository Structure
@@ -30,7 +32,7 @@ moonshot-poc-main/
 ├── notebooks/               # Example notebooks (e.g. verbose_demo.ipynb)
 ├── src/
 │   ├── api/
-│   │   └── main.py          # FastAPI app exposing `/health`, `/agents`, `/run`, `/datasets`, `/projects/run`, `/projects/latest`
+│   │   └── main.py          # FastAPI app exposing `/health`, `/agents`, `/run`, `/datasets`, `/projects/latest`
 │   ├── agents/
 │   │   ├── base_agent.py
 │   │   ├── architect_agent.py
@@ -77,7 +79,7 @@ Copy `.env.example` to `.env` in the repository root and fill out the variables:
 | Variable                     | Description                                                                                 |
 |-----------------------------|---------------------------------------------------------------------------------------------|
 | `MOONSHOT_API_KEY`          | Your Moonshot or Kimi K2 API key for the LLM agents.                                         |
-| `DATASET_PATH`              | Absolute or container‑relative path to a cost‑estimation dataset (CSV or ARFF) for the ML agent.  The dataset **must** contain an `effort` column (case‑insensitive).                              |
+| `DATASET_PATH`              | (Optional) Absolute or container‑relative path to a cost‑estimation dataset (CSV or ARFF) for the ML agent when running the CLI or setting a default for the API.  The dataset **must** contain an `effort` column (case‑insensitive).  If unset, the estimator is skipped unless a dataset is provided via the API. |
 | `DOMAIN_COLUMN`             | (Optional) Name of a categorical column in the dataset for which you want separate models.    |
 | `SHEETS_EXPORT_ENABLED`     | `true` or `false`.  When `true`, results are automatically exported to a Google Sheet.         |
 | `SHEETS_EXPORT_NAME`        | Name of the Google Sheet to write to.                                                       |
@@ -218,15 +220,26 @@ curl -s http://localhost:8000/agents
 # → ["architect","pm","cost","security","devops","performance","data","ux","datasci","dataset_ml"]
 ```
 
-### Run All Agents (No Dataset)
+### Run All Agents
 
-Run the orchestrator on a plain description.  If Supabase persistence is enabled, include your access token in the `Authorization` header (Bearer token) to persist the results.  Without a token, the API still returns results but does not store them.
+Run the orchestrator on your project description.  The `/run` endpoint accepts an optional `dataset_id` to include the data‑driven estimator.  If Supabase persistence is enabled, include your access token in the `Authorization` header (Bearer token) to persist the results.  Without a token, the API still returns results but does not store them.
+
+Run without a dataset:
 
 ```bash
 curl -s -X POST http://localhost:8000/run \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <YOUR_SUPABASE_ACCESS_TOKEN>" \
   -d '{"description": "Global AI FinTech platform: micro‑payments, fraud AI, robo‑advisors, carbon trading, 24 months, $4.5M.", "export_enabled": false}'
+```
+
+Run with a dataset:
+
+```bash
+curl -s -X POST http://localhost:8000/run \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <YOUR_SUPABASE_ACCESS_TOKEN>" \
+  -d '{"description": "Global AI FinTech platform…", "dataset_id": "123e4567-e89b-12d3-a456-…_dataset.csv", "export_enabled": false}'
 ```
 
 ### Upload a Dataset
@@ -246,14 +259,7 @@ curl -s http://localhost:8000/datasets
 # → ["123e4567-e89b-12d3-a456-…_dataset.csv", …]
 ```
 
-### Run with a Specific Dataset
 
-```bash
-curl -s -X POST http://localhost:8000/projects/run \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer <YOUR_SUPABASE_ACCESS_TOKEN>" \
-  -d '{"description": "Global AI FinTech platform…", "dataset_id": "123e4567-e89b-12d3-a456-…_dataset.csv", "export_enabled": false}'
-```
 
 ### Get Latest Predictions (Supabase)
 
@@ -270,9 +276,9 @@ curl -s http://localhost:8000/projects/latest \
 Navigate to <http://localhost:8000/ui> to use the web interface:
 
 1. **Sign in with Google** – Click the “Accedi con Google” button.  A Supabase popup will handle OAuth authentication.  Once logged in, your email will appear in the header and the dataset and run sections will become available.
-2. **Upload a Dataset** – Choose a CSV or ARFF file containing an `effort` column.  Optionally specify a domain column (categorical) used for per‑domain models.
-3. **Run a Project** – Select a dataset, enter a high‑level project description and optionally toggle “Export to Sheets.”  The results appear below as formatted JSON.
-4. **View History** – The “Previsioni recenti” section lists your latest predictions per description/dataset.  These are pulled from Supabase and update automatically after each run.
+2. **Upload a Dataset (optional)** – Choose a CSV or ARFF file containing an `effort` column.  Optionally specify a domain column (categorical) used for per‑domain models.  You can skip this step if you want to run the cost estimator solely on the project description.
+3. **Run a Project** – Select a dataset (or leave “None” selected), enter a high‑level project description and optionally toggle “Export to Sheets.”  The results appear below as formatted JSON.
+4. **View History** – The “Recent Runs” section lists your latest predictions per description/dataset.  These are pulled from Supabase and update automatically after each run.
 5. **Export to Google Sheets** – If `SHEETS_EXPORT_ENABLED=true` in your `.env`, results will also be written to the configured Google Sheet.  You can override this per request via the UI checkbox or the API.
 
 ## Limitations and Future Work

@@ -35,6 +35,11 @@ async function fetchDatasets() {
             throw new Error('Failed to fetch dataset list');
         }
         const data = await res.json();
+        // Insert a default "None" option for running without a dataset
+        const noneOpt = document.createElement('option');
+        noneOpt.value = '';
+        noneOpt.textContent = '-- None (LLM only) --';
+        select.appendChild(noneOpt);
         if (Array.isArray(data)) {
             data.forEach(id => {
                 const opt = document.createElement('option');
@@ -104,11 +109,6 @@ async function runProject() {
         return;
     }
     const datasetId = select.value;
-    if (!datasetId) {
-        msg.textContent = 'Please select a dataset.';
-        msg.style.color = 'red';
-        return;
-    }
     msg.textContent = 'Running agents…';
     msg.style.color = '';
     try {
@@ -117,14 +117,18 @@ async function runProject() {
         if (session) {
             headers['Authorization'] = 'Bearer ' + session.access_token;
         }
-        const res = await fetch('/projects/run', {
+        // Build request body; include dataset_id only if provided
+        const body = {
+            description: desc,
+            export_enabled: exportEnabled
+        };
+        if (datasetId) {
+            body.dataset_id = datasetId;
+        }
+        const res = await fetch('/run', {
             method: 'POST',
             headers,
-            body: JSON.stringify({
-                description: desc,
-                dataset_id: datasetId,
-                export_enabled: exportEnabled
-            })
+            body: JSON.stringify(body)
         });
         if (!res.ok) {
             const text = await res.text();

@@ -13,13 +13,35 @@ from src.export_to_sheets import export_results_to_sheets
 
 class VerboseOrchestrator:
     """
-    Runs all agents and returns a dict of results.
-    If SHEETS_EXPORT_ENABLED=true, auto-exports to Google Sheets after each run.
+    Runs a set of planning and estimation agents and returns a dictionary of results.
+
+    Agents are executed in parallel via the language model or local ML routines.  The
+    dataset‑driven ML agent (``DatasetMLAgent``) is optional and will only be
+    included when explicitly requested or when a dataset path has been provided.
+
+    If ``SHEETS_EXPORT_ENABLED=true``, results are automatically exported to
+    Google Sheets after each run.
     """
 
-    def __init__(self, on_log: Callable[[str, str, str], None] | None = None):
+    def __init__(
+        self,
+        on_log: Callable[[str, str, str], None] | None = None,
+        include_dataset_agent: Optional[bool] = None,
+    ) -> None:
+        """Create a new orchestrator.
+
+        :param on_log: Optional callback to receive (agent_name, prompt, response) events.
+        :param include_dataset_agent: When True, include the dataset ML agent.  When
+            False, exclude it.  When None (default), the agent is included only if
+            the ``DATASET_PATH`` environment variable is set.
+        """
         self.on_log = on_log
-        self.agents = {
+        # Determine whether to include the dataset agent
+        include_dataset = include_dataset_agent
+        if include_dataset is None:
+            include_dataset = bool(os.getenv("DATASET_PATH"))
+        # Base LLM-driven agents
+        self.agents: Dict[str, Any] = {
             "architect":   ArchitectAgent(),
             "pm":          ProjectManagerAgent(),
             "cost":        CostEstimatorAgent(),
@@ -29,9 +51,10 @@ class VerboseOrchestrator:
             "data":        DataAgent(),
             "ux":          UXAgent(),
             "datasci":     DataScientistAgent(),
-            # The dataset_ml agent builds a predictive model from an external dataset.
-            "dataset_ml":  DatasetMLAgent(),
         }
+        # Optionally include the dataset ML agent
+        if include_dataset:
+            self.agents["dataset_ml"] = DatasetMLAgent()
 
         self._sheets_enabled = (os.getenv("SHEETS_EXPORT_ENABLED", "false").lower() == "true")
         self._sheet_name = os.getenv("SHEETS_EXPORT_NAME", "Moonshot POC Outputs")

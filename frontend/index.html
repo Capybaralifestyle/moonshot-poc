@@ -51,10 +51,10 @@
     </div>
 
     <h1>Moonshot POC SaaS</h1>
-    <p>Upload a cost‑estimation dataset, then run the multi‑agent orchestrator on your project description.  Results will appear below.</p>
+    <p>Optionally upload a cost‑estimation dataset to improve the machine‑learning cost model.  You can run the multi‑agent orchestrator with just your project description or with an uploaded dataset.  Results will appear below.</p>
 
     <div id="app-content" style="display:none;">
-        <h2>1. Upload Dataset</h2>
+        <h2>1. Upload Dataset (optional)</h2>
         <input type="file" id="dataset-file" accept=".csv,.arff">
         <label for="domain-column">Domain column (optional)</label>
         <input type="text" id="domain-column" placeholder="e.g. Industry_Sector">
@@ -62,7 +62,7 @@
         <div id="dataset-msg" class="message"></div>
 
         <h2>2. Run Project</h2>
-        <label for="dataset-select">Select dataset</label>
+        <label for="dataset-select">Select dataset (or choose None)</label>
         <select id="dataset-select"></select>
         <label for="description">Project description</label>
         <textarea id="description" rows="6" placeholder="Describe your project here..."></textarea>
@@ -71,7 +71,7 @@
         <div id="run-msg" class="message"></div>
         <pre id="results"></pre>
 
-        <h2>3. Previsioni recenti</h2>
+        <h2>3. Recent Runs</h2>
         <pre id="history"></pre>
     </div>
 
