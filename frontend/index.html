@@ -43,25 +43,40 @@
     </style>
 </head>
 <body>
+    <!-- Authentication bar -->
+    <div id="auth" style="margin-bottom: 1rem;">
+        <span id="auth-info"></span>
+        <button id="login-btn">Accedi con Google</button>
+        <button id="logout-btn" style="display:none;">Esci</button>
+    </div>
+
     <h1>Moonshot POC SaaS</h1>
     <p>Upload a cost‑estimation dataset, then run the multi‑agent orchestrator on your project description.  Results will appear below.</p>
-    <h2>1. Upload Dataset</h2>
-    <input type="file" id="dataset-file" accept=".csv,.arff">
-    <label for="domain-column">Domain column (optional)</label>
-    <input type="text" id="domain-column" placeholder="e.g. Industry_Sector">
-    <button id="upload-btn">Upload Dataset</button>
-    <div id="dataset-msg" class="message"></div>
 
-    <h2>2. Run Project</h2>
-    <label for="dataset-select">Select dataset</label>
-    <select id="dataset-select"></select>
-    <label for="description">Project description</label>
-    <textarea id="description" rows="6" placeholder="Describe your project here..."></textarea>
-    <label><input type="checkbox" id="export-enabled"> Export to Sheets</label>
-    <button id="run-btn">Run Agents</button>
-    <div id="run-msg" class="message"></div>
-    <pre id="results"></pre>
+    <div id="app-content" style="display:none;">
+        <h2>1. Upload Dataset</h2>
+        <input type="file" id="dataset-file" accept=".csv,.arff">
+        <label for="domain-column">Domain column (optional)</label>
+        <input type="text" id="domain-column" placeholder="e.g. Industry_Sector">
+        <button id="upload-btn">Upload Dataset</button>
+        <div id="dataset-msg" class="message"></div>
 
+        <h2>2. Run Project</h2>
+        <label for="dataset-select">Select dataset</label>
+        <select id="dataset-select"></select>
+        <label for="description">Project description</label>
+        <textarea id="description" rows="6" placeholder="Describe your project here..."></textarea>
+        <label><input type="checkbox" id="export-enabled"> Export to Sheets</label>
+        <button id="run-btn">Run Agents</button>
+        <div id="run-msg" class="message"></div>
+        <pre id="results"></pre>
+
+        <h2>3. Previsioni recenti</h2>
+        <pre id="history"></pre>
+    </div>
+
+    <!-- Supabase client library -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script src="main.js"></script>
 </body>
 </html>

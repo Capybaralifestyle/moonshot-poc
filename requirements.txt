@@ -30,3 +30,6 @@ colorama>=0.4.0
 python-multipart>=0.0.5
 # aiofiles is used by FastAPI's StaticFiles to serve the frontend assets asynchronously.
 aiofiles>=23.0.0
+
+# Supabase client for persistence and authentication
+supabase>=1.0.0
