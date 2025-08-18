@@ -1,19 +1,9 @@
-import os
-import gspread
+import pandas as pd
 from typing import Dict, Any, Iterable
-from oauth2client.service_account import ServiceAccountCredentials
-
-
-def _get_client(creds_path: str):
-    scope = [
-        "https://spreadsheets.google.com/feeds",
-        "https://www.googleapis.com/auth/drive"
-    ]
-    creds = ServiceAccountCredentials.from_json_keyfile_name(creds_path, scope)
-    return gspread.authorize(creds)
 
 
 def _flatten(prefix: str, obj: Any) -> Iterable[tuple[str, str]]:
+    """Flatten nested dict/list structures into key-path and string value pairs."""
     if isinstance(obj, dict):
         for k, v in obj.items():
             new_prefix = f"{prefix}.{k}" if prefix else k
@@ -26,15 +16,13 @@ def _flatten(prefix: str, obj: Any) -> Iterable[tuple[str, str]]:
         yield (prefix, "" if obj is None else str(obj))
 
 
-def export_results_to_sheets(results: Dict[str, Any], sheet_name: str, creds_path: str, worksheet_index: int = 0) -> None:
-    client = _get_client(creds_path)
-    sh = client.open(sheet_name)
-    ws = sh.get_worksheet(worksheet_index) or sh.sheet1
+def export_results_to_xls(results: Dict[str, Any], file_path: str) -> None:
+    """Export agent results to a flattened XLS file.
 
-    ws.clear()
-    ws.append_row(["Agent", "KeyPath", "Value"])
-
-    rows = []
+    :param results: Mapping of agent keys to their results payloads.
+    :param file_path: Destination `.xls` file path.
+    """
+    rows: list[list[str]] = []
     for agent, payload in results.items():
         if payload is None:
             rows.append([agent, "raw", ""])
@@ -45,6 +33,5 @@ def export_results_to_sheets(results: Dict[str, Any], sheet_name: str, creds_pat
         for key_path, val in _flatten("", payload):
             rows.append([agent, key_path, val])
 
-    CHUNK = 500
-    for i in range(0, len(rows), CHUNK):
-        ws.append_rows(rows[i:i+CHUNK], value_input_option="RAW")
+    df = pd.DataFrame(rows, columns=["Agent", "KeyPath", "Value"])
+    df.to_excel(file_path, index=False, engine="xlwt")

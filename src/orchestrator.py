@@ -5,17 +5,17 @@ from typing import Callable, Dict, Any
 from src.agents import (
     ArchitectAgent, ProjectManagerAgent, CostEstimatorAgent,
     SecurityAgent, DevOpsAgent, PerformanceAgent, DataAgent, UXAgent,
-    DataScientistAgent
+    DataScientistAgent,
 )
-from src.export_to_sheets import export_results_to_sheets
+from src.export_to_excel import export_results_to_xls
 
 
 class VerboseOrchestrator:
     """Run planning and estimation agents and return a dictionary of results.
 
-    Agents are executed in parallel via the language model.  If
-    ``SHEETS_EXPORT_ENABLED=true``, results are automatically exported to
-    Google Sheets after each run.
+    Agents are executed via the language model.  If
+    ``XLS_EXPORT_ENABLED=true``, results are automatically exported to an
+    Excel ``.xls`` file after each run.
     """
 
     def __init__(
@@ -43,37 +43,51 @@ class VerboseOrchestrator:
             "datasci":     DataScientistAgent(),
         }
 
-        self._sheets_enabled = (os.getenv("SHEETS_EXPORT_ENABLED", "false").lower() == "true")
-        self._sheet_name = os.getenv("SHEETS_EXPORT_NAME", "Moonshot POC Outputs")
-        self._sa_path = os.getenv("GCP_SERVICE_ACCOUNT_JSON", "/workspace/config/gcp_service_account.json")
-        self._worksheet_index = int(os.getenv("SHEETS_WORKSHEET_INDEX", "0"))
+        self._xls_enabled = os.getenv("XLS_EXPORT_ENABLED", "false").lower() == "true"
+        self._xls_path = os.getenv("XLS_EXPORT_PATH", "/workspace/results.xls")
+        self.max_retries = int(os.getenv("AGENT_MAX_RETRIES", "100"))
+        self._intervention_threshold = int(self.max_retries * 0.75)
 
     def run(self, description: str) -> Dict[str, Any]:
         results: Dict[str, Any] = {}
         for key, agent in self.agents.items():
             prompt = agent.build_prompt({"description": description})
-            if self.on_log:
-                self.on_log(agent.name, prompt, "🔄 calling LLM …")
-            resp = self.llm.invoke(prompt).content
-            if self.on_log:
-                self.on_log(agent.name, prompt, resp)
-            try:
-                results[key] = json.loads(resp or "{}")
-            except json.JSONDecodeError:
-                results[key] = {"_error": f"Invalid JSON from {agent.name}", "raw": resp}
-
-        if self._sheets_enabled:
-            try:
-                export_results_to_sheets(
-                    results=results,
-                    sheet_name=self._sheet_name,
-                    creds_path=self._sa_path,
-                    worksheet_index=self._worksheet_index
-                )
+            attempt = 0
+            while attempt < self.max_retries:
+                attempt += 1
                 if self.on_log:
-                    self.on_log("Exporter", f"Sheet={self._sheet_name}", "✅ Exported to Google Sheets")
+                    self.on_log(agent.name, prompt, f"🔄 calling LLM (attempt {attempt}/{self.max_retries}) …")
+                try:
+                    resp = self.llm.invoke(prompt).content
+                except Exception as e:
+                    resp = ""
+                    if self.on_log:
+                        self.on_log(agent.name, prompt, f"❌ LLM call failed: {e}")
+                    if attempt >= self._intervention_threshold and self.on_log:
+                        self.on_log(agent.name, prompt, "⚠️ Human intervention recommended.")
+                    continue
+
+                if self.on_log:
+                    self.on_log(agent.name, prompt, resp)
+
+                try:
+                    results[key] = json.loads(resp or "{}")
+                    break
+                except json.JSONDecodeError:
+                    results[key] = {"_error": f"Invalid JSON from {agent.name}", "raw": resp}
+                    if attempt >= self._intervention_threshold and self.on_log:
+                        self.on_log(agent.name, prompt, "⚠️ Human intervention recommended.")
+            else:
+                if self.on_log:
+                    self.on_log(agent.name, prompt, f"❌ Failed after {self.max_retries} attempts")
+
+        if self._xls_enabled:
+            try:
+                export_results_to_xls(results=results, file_path=self._xls_path)
+                if self.on_log:
+                    self.on_log("Exporter", f"File={self._xls_path}", "✅ Exported to XLS")
             except Exception as e:
                 if self.on_log:
-                    self.on_log("Exporter", f"Sheet={self._sheet_name}", f"❌ Export failed: {e}")
+                    self.on_log("Exporter", f"File={self._xls_path}", f"❌ Export failed: {e}")
 
         return results

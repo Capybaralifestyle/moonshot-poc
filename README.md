@@ -1,17 +1,19 @@
-# Moonshot Alpha v0.3
+# Moonshot Alpha v0.4
 
 Moonshot Alpha is a modular, multi‑agent framework for **planning and estimating complex software projects**.  It combines conversational Large Language Model (LLM) prompts to produce actionable **architectural plans**, **project timelines**, **cost estimates**, **security recommendations**, and more.  The goal of this release is to provide a ready‑to‑run reference implementation that can be run locally or in Docker for experimentation, prototyping and education.
 
-**What’s new in v0.3:** Interactive model selection supporting local **Ollama** models or cloud providers (**OpenAI**, **Anthropic**, **Kimi K2**) and a containerised CLI service for running the application entirely inside Docker.
+**What’s new in v0.4:** `.xls` export replacing Google Sheets, up to 100 retries per agent with human intervention prompts after 75 attempts, and general robustness improvements.
 
 ## Features
 
 * **Multi‑agent orchestration** – Runs nine LLM‑driven agents in parallel to produce a holistic project plan.  Each agent returns structured JSON for easy integration.
 * **Cross‑platform CLI** – Script for running all agents on a project description (`cli.py`).  Prompts for the desired LLM and prints colourised logs to the terminal.
-* **REST API** – A FastAPI service exposes endpoints for health checks, listing agents, running the orchestrator and (optionally) exporting results to Google Sheets.
-* **SaaS Web UI** – A simple front‑end served from the API at `/ui`.  Users provide a project description and run the multi‑agent orchestrator directly from the browser.  The UI includes Google authentication via Supabase and displays the latest predictions for each user.
+* **REST API** – A FastAPI service exposes endpoints for health checks, listing agents, running the orchestrator and (optionally) exporting results to an Excel `.xls` file.
+* **SaaS Web UI** – A simple front‑end served from the API at `/ui`.  Users provide a project description and run the multi‑agent orchestrator directly from the browser.  The UI includes Google authentication via Supabase, can export results to XLS and displays the latest predictions for each user.
 * **Supabase persistence (optional)** – When configured, results are **persisted per user** to a Supabase table after each run.  Users authenticate using Google OAuth via Supabase; the API verifies their JSON Web Token (JWT) and stores the description, user ID and JSON results in a `project_runs` table.  The endpoint (`/projects/latest`) returns the most recent prediction for each description for the authenticated user.
 * **Dockerised deployment** – A `Dockerfile` and `docker-compose.yml` build reproducible images for the CLI/Jupyter (port 8888), API (port 8000) and Ollama model server.  No local Python installation is required.
+
+Additional role descriptions and AI delegation guidelines are available in `docs/human_resources.md`.
 
 ## Repository Structure
 
@@ -26,6 +28,8 @@ moonshot-poc-main/
 ├── frontend/
 │   ├── index.html           # Simple SaaS UI served at /ui
 │   └── main.js              # Client‑side logic (run, auth, history)
+├── docs/
+│   └── human_resources.md   # Roles and AI delegation guidelines
 ├── notebooks/               # Example notebooks (e.g. verbose_demo.ipynb)
 ├── src/
 │   ├── api/
@@ -42,7 +46,7 @@ moonshot-poc-main/
 │   │   ├── ux_agent.py
 │   │   └── data_scientist_agent.py
 ├── cli.py               # Run all agents on a project description (PDF input)
-├── export_to_sheets.py  # Utility to flatten and send results to Google Sheets
+├── export_to_excel.py  # Utility to flatten and export results as `.xls`
 ├── orchestrator.py      # VerboseOrchestrator coordinating all agents
 └── config.py            # Factory to create LLM clients for Ollama or cloud providers
 ```
@@ -53,8 +57,7 @@ moonshot-poc-main/
 
 1. **Docker** and **docker‑compose** installed (recommended for a reproducible environment).  Alternatively, ensure **Python 3.11+** is available if running locally.
 2. API keys for whichever cloud providers you plan to use (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `MOONSHOT_API_KEY`).
-3. (Optional) A **Google Sheets service‑account JSON** if you plan to export results.  Provide its path in `GCP_SERVICE_ACCOUNT_JSON`.
-4. (Optional) A **Supabase project** with **Google sign‑in enabled** if you want to persist results per user.  You must create a table called `project_runs` with the following columns:
+3. (Optional) A **Supabase project** with **Google sign‑in enabled** if you want to persist results per user.  You must create a table called `project_runs` with the following columns:
 
    | Column       | Type     | Notes                                               |
    |-------------:|----------|-----------------------------------------------------|
@@ -74,15 +77,14 @@ Copy `.env.example` to `.env` in the repository root and fill out the variables:
 | `OPENAI_API_KEY`            | API key for OpenAI models (if using the OpenAI provider).                                     |
 | `ANTHROPIC_API_KEY`         | API key for Anthropic models (if using the Anthropic provider).                               |
 | `OLLAMA_HOST`              | URL of the Ollama server (defaults to `http://ollama:11434`).                                 |
-| `SHEETS_EXPORT_ENABLED`     | `true` or `false`.  When `true`, results are automatically exported to a Google Sheet.         |
-| `SHEETS_EXPORT_NAME`        | Name of the Google Sheet to write to.                                                       |
-| `GCP_SERVICE_ACCOUNT_JSON`  | Path to a service account JSON file with permissions to Sheets.                              |
-| `SHEETS_WORKSHEET_INDEX`    | Worksheet index (0‑based) within the sheet.                                                 |
+| `XLS_EXPORT_ENABLED`        | `true` or `false`.  When `true`, results are automatically exported to an XLS file.          |
+| `XLS_EXPORT_PATH`           | Destination path for the XLS file (default `/workspace/results.xls`).                       |
+| `AGENT_MAX_RETRIES`         | Maximum number of retries per agent (default `100`).                                         |
 | `SUPABASE_URL`              | Base URL of your Supabase project (e.g. `https://xyzcompany.supabase.co`).                   |
 | `SUPABASE_ANON_KEY`         | Anonymous key for client‑side authentication in the web UI.                                 |
 | `SUPABASE_SERVICE_KEY`      | Service key used by the API to insert/query records.                                        |
 
-If you are not using Google Sheets or Supabase, leave the related variables blank or set `SHEETS_EXPORT_ENABLED=false`.
+If you are not using XLS export or Supabase, leave the related variables blank or set `XLS_EXPORT_ENABLED=false`.
 
 ### Setting Up Supabase Persistence
 
@@ -171,7 +173,7 @@ docker compose run --rm cli path/to/description.pdf
 # Or omit the PDF and type the description interactively
 docker compose run --rm cli -
 
-# Add --export to override the Sheets export flag for this run
+# Add --export to override the XLS export flag for this run
 docker compose run --rm cli my_project.pdf --export
 ```
 
@@ -219,9 +221,9 @@ curl -s http://localhost:8000/projects/latest \
 Navigate to <http://localhost:8000/ui> to use the web interface:
 
 1. **Sign in with Google** – Click the “Accedi con Google” button.  A Supabase popup will handle OAuth authentication.  Once logged in, your email will appear in the header and the run section will become available.
-2. **Run a Project** – Enter a high‑level project description and optionally toggle “Export to Sheets.”  The results appear below as formatted JSON.
+2. **Run a Project** – Enter a high‑level project description and optionally toggle “Export to XLS.”  The results appear below as formatted JSON.
 3. **View History** – The “Recent Runs” section lists your latest predictions per description.  These are pulled from Supabase and update automatically after each run.
-4. **Export to Google Sheets** – If `SHEETS_EXPORT_ENABLED=true` in your `.env`, results will also be written to the configured Google Sheet.  You can override this per request via the UI checkbox or the API.
+4. **Export to XLS** – If `XLS_EXPORT_ENABLED=true` in your `.env`, results will also be written to the configured XLS file.  You can override this per request via the UI checkbox or the API.
 
 ## Limitations and Future Work
 

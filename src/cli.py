@@ -1,10 +1,10 @@
-"""Command-line interface for Moonshot POC v3.
+"""Command-line interface for Moonshot POC v0.4.
 
 This script reads a PDF file containing a high-level project description, runs all
 registered agents via the VerboseOrchestrator, and prints verbose logs with
 distinct colors for each agent. If the PDF lacks usable text, it prompts the
-user to enter a description manually. Optionally, it can export results to
-Google Sheets if enabled via CLI flag or environment variables. Before running,
+user to enter a description manually. Optionally, it can export results to an
+Excel `.xls` file if enabled via CLI flag or environment variables. Before running,
 the user selects either a local Ollama model or a cloud provider (OpenAI,
 Anthropic, Kimi K2).
 """
@@ -125,7 +125,7 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument(
         "--export",
         action="store_true",
-        help="Override SHEETS_EXPORT_ENABLED and export results to Google Sheets for this run.",
+        help="Override XLS_EXPORT_ENABLED and export results to an XLS file for this run.",
     )
     args = parser.parse_args(argv)
 
@@ -141,7 +141,7 @@ def main(argv: list[str] | None = None) -> None:
     orchestrator = VerboseOrchestrator(llm, on_log=color_log)
     # Override export flag for this invocation if requested
     if args.export is not None:
-        orchestrator._sheets_enabled = bool(args.export)
+        orchestrator._xls_enabled = bool(args.export)
 
     # Run agents on the description
     try:
