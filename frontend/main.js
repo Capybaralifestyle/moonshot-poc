@@ -21,83 +21,7 @@ async function getSession() {
     return data.session || null;
 }
 
-async function fetchDatasets() {
-    const select = document.getElementById('dataset-select');
-    select.innerHTML = '';
-    try {
-        const session = await getSession();
-        const headers = {};
-        if (session) {
-            headers['Authorization'] = 'Bearer ' + session.access_token;
-        }
-        const res = await fetch('/datasets', { headers });
-        if (!res.ok) {
-            throw new Error('Failed to fetch dataset list');
-        }
-        const data = await res.json();
-        // Insert a default "None" option for running without a dataset
-        const noneOpt = document.createElement('option');
-        noneOpt.value = '';
-        noneOpt.textContent = '-- None (LLM only) --';
-        select.appendChild(noneOpt);
-        if (Array.isArray(data)) {
-            data.forEach(id => {
-                const opt = document.createElement('option');
-                opt.value = id;
-                opt.textContent = id;
-                select.appendChild(opt);
-            });
-        }
-    } catch (err) {
-        console.error(err);
-    }
-}
-
-async function uploadDataset() {
-    const fileInput = document.getElementById('dataset-file');
-    const domainInput = document.getElementById('domain-column');
-    const msg = document.getElementById('dataset-msg');
-    const file = fileInput.files[0];
-    if (!file) {
-        msg.textContent = 'Please choose a dataset file.';
-        msg.style.color = 'red';
-        return;
-    }
-    const formData = new FormData();
-    formData.append('file', file);
-    const domain = domainInput.value.trim();
-    if (domain) {
-        formData.append('domain_column', domain);
-    }
-    msg.textContent = 'Uploading…';
-    msg.style.color = '';
-    try {
-        const session = await getSession();
-        const headers = {};
-        if (session) {
-            headers['Authorization'] = 'Bearer ' + session.access_token;
-        }
-        const res = await fetch('/datasets', {
-            method: 'POST',
-            headers,
-            body: formData
-        });
-        if (!res.ok) {
-            throw new Error('Upload failed');
-        }
-        const data = await res.json();
-        msg.textContent = `Uploaded successfully. Dataset ID: ${data.dataset_id}`;
-        msg.style.color = 'green';
-        // refresh list
-        await fetchDatasets();
-    } catch (err) {
-        msg.textContent = 'Error: ' + err.message;
-        msg.style.color = 'red';
-    }
-}
-
 async function runProject() {
-    const select = document.getElementById('dataset-select');
     const desc = document.getElementById('description').value.trim();
     const exportEnabled = document.getElementById('export-enabled').checked;
     const msg = document.getElementById('run-msg');
@@ -108,7 +32,6 @@ async function runProject() {
         msg.style.color = 'red';
         return;
     }
-    const datasetId = select.value;
     msg.textContent = 'Running agents…';
     msg.style.color = '';
     try {
@@ -117,14 +40,10 @@ async function runProject() {
         if (session) {
             headers['Authorization'] = 'Bearer ' + session.access_token;
         }
-        // Build request body; include dataset_id only if provided
         const body = {
             description: desc,
             export_enabled: exportEnabled
         };
-        if (datasetId) {
-            body.dataset_id = datasetId;
-        }
         const res = await fetch('/run', {
             method: 'POST',
             headers,
@@ -195,7 +114,6 @@ async function updateAuthUI() {
         logoutBtn.style.display = 'inline-block';
         authInfo.textContent = session.user.email || session.user.id;
         appContent.style.display = 'block';
-        await fetchDatasets();
         await fetchHistory();
     } else {
         loginBtn.style.display = 'inline-block';
@@ -212,10 +130,9 @@ supa.auth.onAuthStateChange(() => {
 
 // Initialise event listeners once the DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('upload-btn').addEventListener('click', uploadDataset);
     document.getElementById('run-btn').addEventListener('click', runProject);
     document.getElementById('login-btn').addEventListener('click', login);
     document.getElementById('logout-btn').addEventListener('click', logout);
-    // Populate datasets and history based on current auth state
+    // Populate history based on current auth state
     updateAuthUI();
 });
