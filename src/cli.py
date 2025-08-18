@@ -1,14 +1,17 @@
-"""Command-line interface for Moonshot POC v2.
+"""Command-line interface for Moonshot POC v3.
 
 This script reads a PDF file containing a high-level project description, runs all
 registered agents via the VerboseOrchestrator, and prints verbose logs with
 distinct colors for each agent. If the PDF lacks usable text, it prompts the
 user to enter a description manually. Optionally, it can export results to
-Google Sheets if enabled via CLI flag or environment variables.
+Google Sheets if enabled via CLI flag or environment variables. Before running,
+the user selects either a local Ollama model or a cloud provider (OpenAI,
+Anthropic, Kimi K2).
 """
 
 import argparse
 import json
+import subprocess
 import sys
 from typing import Dict
 
@@ -16,6 +19,7 @@ import fitz  # PyMuPDF for PDF parsing
 from colorama import init, Fore, Style
 
 from src.orchestrator import VerboseOrchestrator
+from src.config import get_llm
 
 
 def parse_pdf(path: str) -> str:
@@ -71,6 +75,42 @@ def color_log(agent: str, prompt: str, resp: str) -> None:
     print(resp.strip() + "\n")
 
 
+def _select_llm():
+    """Interactively select an LLM provider and model."""
+    providers = ["OLLAMA (local)", "OPENAI", "ANTHROPIC", "KIMI K2"]
+    for i, p in enumerate(providers, 1):
+        print(f"{i}) {p}")
+    choice = input("Select provider: ").strip()
+    if choice == "1":
+        try:
+            output = subprocess.check_output(["ollama", "list"], text=True)
+            models = [line.split()[0] for line in output.splitlines()[1:] if line.strip()]
+        except Exception as e:
+            print(f"Failed to list Ollama models: {e}")
+            sys.exit(1)
+        if not models:
+            print("No local models available.")
+            sys.exit(1)
+        for i, m in enumerate(models, 1):
+            print(f"{i}) {m}")
+        idx = int(input("Select model: ").strip()) - 1
+        model = models[idx]
+        return get_llm("ollama", model)
+    mapping = {"2": "openai", "3": "anthropic", "4": "kimi"}
+    provider = mapping.get(choice)
+    if not provider:
+        print("Invalid choice.")
+        sys.exit(1)
+    defaults = {
+        "openai": "gpt-4o-mini",
+        "anthropic": "claude-3-haiku-20240307",
+        "kimi": "kimi-k2-instruct",
+    }
+    default_model = defaults[provider]
+    model = input(f"Enter model name [{default_model}]: ").strip() or default_model
+    return get_llm(provider, model)
+
+
 def main(argv: list[str] | None = None) -> None:
     """Entry point for CLI execution."""
     init(autoreset=True)  # Initialize colorama
@@ -96,8 +136,9 @@ def main(argv: list[str] | None = None) -> None:
             "The PDF contained no extractable text. Please enter a project description manually:\n"
         ).strip()
 
-    # Instantiate orchestrator with color logging
-    orchestrator = VerboseOrchestrator(on_log=color_log)
+    # Choose LLM and instantiate orchestrator with color logging
+    llm = _select_llm()
+    orchestrator = VerboseOrchestrator(llm, on_log=color_log)
     # Override export flag for this invocation if requested
     if args.export is not None:
         orchestrator._sheets_enabled = bool(args.export)

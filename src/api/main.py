@@ -9,6 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from src.orchestrator import VerboseOrchestrator
+from src.config import get_llm
 
 from pathlib import Path
 
@@ -105,6 +106,9 @@ app = FastAPI(
     description="Run the multi-agent orchestrator via REST and (optionally) export to Google Sheets."
 )
 
+_default_provider = os.getenv("LLM_PROVIDER", "kimi")
+_default_model = os.getenv("LLM_MODEL", "kimi-k2-instruct")
+
 # Allow everything for simplicity; lock down if needed
 app.add_middleware(
     CORSMiddleware,
@@ -155,7 +159,8 @@ def run(req: RunRequest, authorization: Optional[str] = Header(None)) -> RunResp
         # keep logs server-side only for now; you can store or stream if needed
         pass
 
-    orch = VerboseOrchestrator(on_log=noop_log)
+    llm = get_llm(_default_provider, _default_model)
+    orch = VerboseOrchestrator(llm, on_log=noop_log)
     if req.export_enabled is not None:
         orch._sheets_enabled = bool(req.export_enabled)
 

@@ -7,7 +7,6 @@ from src.agents import (
     SecurityAgent, DevOpsAgent, PerformanceAgent, DataAgent, UXAgent,
     DataScientistAgent
 )
-from src.config import llm
 from src.export_to_sheets import export_results_to_sheets
 
 
@@ -21,12 +20,15 @@ class VerboseOrchestrator:
 
     def __init__(
         self,
+        llm,
         on_log: Callable[[str, str, str], None] | None = None,
     ) -> None:
         """Create a new orchestrator.
 
+        :param llm: LLM client to use for all agents.
         :param on_log: Optional callback to receive (agent_name, prompt, response) events.
         """
+        self.llm = llm
         self.on_log = on_log
         # Base LLM-driven agents
         self.agents: Dict[str, Any] = {
@@ -52,7 +54,7 @@ class VerboseOrchestrator:
             prompt = agent.build_prompt({"description": description})
             if self.on_log:
                 self.on_log(agent.name, prompt, "🔄 calling LLM …")
-            resp = llm.invoke(prompt).content
+            resp = self.llm.invoke(prompt).content
             if self.on_log:
                 self.on_log(agent.name, prompt, resp)
             try:
