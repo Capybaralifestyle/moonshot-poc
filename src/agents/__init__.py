@@ -10,6 +10,3 @@ from .performance_agent import PerformanceAgent
 from .data_agent import DataAgent
 from .ux_agent import UXAgent
 from .data_scientist_agent import DataScientistAgent
-
-# Data-driven estimation agent using machine learning on the ISBSG/COSMIC dataset.
-from .dataset_ml_agent import DatasetMLAgent  # noqa: E402 F401

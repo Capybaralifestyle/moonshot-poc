@@ -50,8 +50,6 @@ COLOR_MAP: Dict[str, str] = {
     "Data": Fore.LIGHTYELLOW_EX,
     "UX": Fore.LIGHTWHITE_EX,
     "DataScientist": Fore.LIGHTCYAN_EX,
-    # New dataset ML agent for ISBSG/COSMIC
-    "DatasetML": Fore.LIGHTMAGENTA_EX,
 }
 
 
