@@ -103,7 +103,7 @@ def _persist_run(user: Optional[Dict[str, Any]], description: str, results: Dict
 app = FastAPI(
     title="Moonshot-K2 POC API",
     version="1.0.0",
-    description="Run the multi-agent orchestrator via REST and (optionally) export to Google Sheets."
+    description="Run the multi-agent orchestrator via REST and (optionally) export to an XLS file."
 )
 
 _default_provider = os.getenv("LLM_PROVIDER", "kimi")
@@ -124,7 +124,7 @@ class RunRequest(BaseModel):
     )
     export_enabled: Optional[bool] = Field(
         None,
-        description="Override the Google Sheets export flag for this run only."
+        description="Override the XLS export flag for this run only."
     )
 
 
@@ -162,7 +162,7 @@ def run(req: RunRequest, authorization: Optional[str] = Header(None)) -> RunResp
     llm = get_llm(_default_provider, _default_model)
     orch = VerboseOrchestrator(llm, on_log=noop_log)
     if req.export_enabled is not None:
-        orch._sheets_enabled = bool(req.export_enabled)
+        orch._xls_enabled = bool(req.export_enabled)
 
     try:
         results = orch.run(req.description)

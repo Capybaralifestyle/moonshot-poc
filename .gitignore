@@ -21,11 +21,11 @@ env/
 # --- Data / artifacts ---
 data/uploads/*
 !data/uploads/.gitkeep
+*.xls
 
 # --- Config / secrets ---
 .env
 .env.*
-config/gcp_service_account.json  # Google service account key (keep secret!)
 
 # --- Docker / local overrides ---
 docker-compose.override.yml
