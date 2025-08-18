@@ -1,4 +1,11 @@
 services:
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama:/root/.ollama
+
   jupyter:
     build: .
     container_name: moonshot-jupyter
@@ -9,11 +16,16 @@ services:
     environment:
       - JUPYTER_TOKEN=agent123
       - MOONSHOT_API_KEY=${MOONSHOT_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OLLAMA_HOST=http://ollama:11434
       - SHEETS_EXPORT_ENABLED=${SHEETS_EXPORT_ENABLED}
       - SHEETS_EXPORT_NAME=${SHEETS_EXPORT_NAME}
       - GCP_SERVICE_ACCOUNT_JSON=${GCP_SERVICE_ACCOUNT_JSON}
       - SHEETS_WORKSHEET_INDEX=${SHEETS_WORKSHEET_INDEX}
       - DATASET_PATH=${DATASET_PATH}
+    depends_on:
+      - ollama
     command: >
       jupyter lab
       --ip=0.0.0.0
@@ -31,13 +43,40 @@ services:
       - ./:/workspace
     environment:
       - MOONSHOT_API_KEY=${MOONSHOT_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OLLAMA_HOST=http://ollama:11434
       - SHEETS_EXPORT_ENABLED=${SHEETS_EXPORT_ENABLED}
       - SHEETS_EXPORT_NAME=${SHEETS_EXPORT_NAME}
       - GCP_SERVICE_ACCOUNT_JSON=${GCP_SERVICE_ACCOUNT_JSON}
       - SHEETS_WORKSHEET_INDEX=${SHEETS_WORKSHEET_INDEX}
       - DATASET_PATH=${DATASET_PATH}
+    depends_on:
+      - ollama
     command: >
       uvicorn src.api.main:app
       --host 0.0.0.0
       --port 8000
       --workers 2
+
+  cli:
+    build: .
+    container_name: moonshot-cli
+    volumes:
+      - ./:/workspace
+    environment:
+      - MOONSHOT_API_KEY=${MOONSHOT_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OLLAMA_HOST=http://ollama:11434
+      - SHEETS_EXPORT_ENABLED=${SHEETS_EXPORT_ENABLED}
+      - SHEETS_EXPORT_NAME=${SHEETS_EXPORT_NAME}
+      - GCP_SERVICE_ACCOUNT_JSON=${GCP_SERVICE_ACCOUNT_JSON}
+      - SHEETS_WORKSHEET_INDEX=${SHEETS_WORKSHEET_INDEX}
+      - DATASET_PATH=${DATASET_PATH}
+    depends_on:
+      - ollama
+    entrypoint: ["python", "-m", "src.cli"]
+
+volumes:
+  ollama:

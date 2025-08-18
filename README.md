@@ -1,24 +1,24 @@
-# Moonshot Alpha v0.2
+# Moonshot Alpha v0.3
 
 Moonshot Alpha is a modular, multi‑agent framework for **planning and estimating complex software projects**.  It combines conversational Large Language Model (LLM) prompts to produce actionable **architectural plans**, **project timelines**, **cost estimates**, **security recommendations**, and more.  The goal of this release is to provide a ready‑to‑run reference implementation that can be run locally or in Docker for experimentation, prototyping and education.
 
-**What’s new in v0.2:** This release streamlines the orchestrator and removes the optional dataset-based estimator, focusing solely on LLM-driven agents with a simplified API and UI.
+**What’s new in v0.3:** Interactive model selection supporting local **Ollama** models or cloud providers (**OpenAI**, **Anthropic**, **Kimi K2**) and a containerised CLI service for running the application entirely inside Docker.
 
 ## Features
 
 * **Multi‑agent orchestration** – Runs nine LLM‑driven agents in parallel to produce a holistic project plan.  Each agent returns structured JSON for easy integration.
-* **Cross‑platform CLI** – Script for running all agents on a project description (`cli.py`).  Prints colourised logs to the terminal.
+* **Cross‑platform CLI** – Script for running all agents on a project description (`cli.py`).  Prompts for the desired LLM and prints colourised logs to the terminal.
 * **REST API** – A FastAPI service exposes endpoints for health checks, listing agents, running the orchestrator and (optionally) exporting results to Google Sheets.
 * **SaaS Web UI** – A simple front‑end served from the API at `/ui`.  Users provide a project description and run the multi‑agent orchestrator directly from the browser.  The UI includes Google authentication via Supabase and displays the latest predictions for each user.
 * **Supabase persistence (optional)** – When configured, results are **persisted per user** to a Supabase table after each run.  Users authenticate using Google OAuth via Supabase; the API verifies their JSON Web Token (JWT) and stores the description, user ID and JSON results in a `project_runs` table.  The endpoint (`/projects/latest`) returns the most recent prediction for each description for the authenticated user.
-* **Dockerised deployment** – A `Dockerfile` and `docker-compose.yml` build reproducible images for the CLI/Jupyter (port 8888) and API services (port 8000).  No local Python installation is required.
+* **Dockerised deployment** – A `Dockerfile` and `docker-compose.yml` build reproducible images for the CLI/Jupyter (port 8888), API (port 8000) and Ollama model server.  No local Python installation is required.
 
 ## Repository Structure
 
 ```
 moonshot-poc-main/
 ├── Dockerfile               # Build instructions for the Python environment
-├── docker-compose.yml       # Defines the Jupyter (8888) and API (8000) services
+├── docker-compose.yml       # Defines the Jupyter (8888), API (8000), CLI and Ollama services
 ├── .env.example             # Template for environment variables (including Supabase)
 ├── requirements.txt         # Python dependencies, including LLM libs, FastAPI and Supabase
 ├── config/
@@ -44,7 +44,7 @@ moonshot-poc-main/
 ├── cli.py               # Run all agents on a project description (PDF input)
 ├── export_to_sheets.py  # Utility to flatten and send results to Google Sheets
 ├── orchestrator.py      # VerboseOrchestrator coordinating all agents
-└── config.py            # Configures the LLM (ChatOpenAI) using the MOONSHOT_API_KEY
+└── config.py            # Factory to create LLM clients for Ollama or cloud providers
 ```
 
 ## Getting Started
@@ -52,7 +52,7 @@ moonshot-poc-main/
 ### Prerequisites
 
 1. **Docker** and **docker‑compose** installed (recommended for a reproducible environment).  Alternatively, ensure **Python 3.11+** is available if running locally.
-2. A **Moonshot API key** (`MOONSHOT_API_KEY`) to enable the LLM‑based agents.  Without a valid key the agents will raise errors.
+2. API keys for whichever cloud providers you plan to use (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `MOONSHOT_API_KEY`).
 3. (Optional) A **Google Sheets service‑account JSON** if you plan to export results.  Provide its path in `GCP_SERVICE_ACCOUNT_JSON`.
 4. (Optional) A **Supabase project** with **Google sign‑in enabled** if you want to persist results per user.  You must create a table called `project_runs` with the following columns:
 
@@ -71,6 +71,9 @@ Copy `.env.example` to `.env` in the repository root and fill out the variables:
 | Variable                     | Description                                                                                 |
 |-----------------------------|---------------------------------------------------------------------------------------------|
 | `MOONSHOT_API_KEY`          | Your Moonshot or Kimi K2 API key for the LLM agents.                                         |
+| `OPENAI_API_KEY`            | API key for OpenAI models (if using the OpenAI provider).                                     |
+| `ANTHROPIC_API_KEY`         | API key for Anthropic models (if using the Anthropic provider).                               |
+| `OLLAMA_HOST`              | URL of the Ollama server (defaults to `http://ollama:11434`).                                 |
 | `SHEETS_EXPORT_ENABLED`     | `true` or `false`.  When `true`, results are automatically exported to a Google Sheet.         |
 | `SHEETS_EXPORT_NAME`        | Name of the Google Sheet to write to.                                                       |
 | `GCP_SERVICE_ACCOUNT_JSON`  | Path to a service account JSON file with permissions to Sheets.                              |
@@ -112,7 +115,7 @@ create policy "Allow select own records" on project_runs
 ## Building and Running with Docker
 
 1. Copy `.env.example` to `.env` and fill in the required variables.
-2. Build and start the services in detached mode:
+2. Build and start the services (including the Ollama model server) in detached mode:
 
 ```bash
 docker compose up --build -d
@@ -125,6 +128,7 @@ docker compose up --build -d
 | **JupyterLab** | <http://localhost:8888/?token=agent123>    | Token is set via `JUPYTER_TOKEN` in `docker-compose.yml`.  Use the provided notebook example to run the orchestrator and inspect results. |
 | **API**        | <http://localhost:8000>                   | Swagger docs at `/docs`.  Exposes the endpoints listed below. |
 | **Web UI**     | <http://localhost:8000/ui>                | Authenticate via Google and run agents from the browser. |
+| **Ollama**     | <http://localhost:11434>                  | Serves local models used by the CLI/API when selected. |
 
 4. To view container logs use `docker logs moonshot-jupyter` or `docker logs moonshot-api`.
 
@@ -150,25 +154,25 @@ cp .env.example .env
 # Run the API
 uvicorn src.api.main:app --host 0.0.0.0 --port 8000
 
-# Or run the CLI
-python src/cli.py -  # enter description interactively
+# Or run the CLI (inside Docker)
+docker compose run --rm cli -  # enter description interactively
 ```
 
 ## Using the CLI Tools
 
 ### Main Orchestrator CLI
 
-Run all agents on a description:
+Run all agents on a description (you will be prompted to choose a local or cloud model):
 
 ```bash
 # Provide a PDF file with a high‑level project description
-python src/cli.py path/to/description.pdf
+docker compose run --rm cli path/to/description.pdf
 
 # Or omit the PDF and type the description interactively
-python src/cli.py -
+docker compose run --rm cli -
 
 # Add --export to override the Sheets export flag for this run
-python src/cli.py my_project.pdf --export
+docker compose run --rm cli my_project.pdf --export
 ```
 
 ## Using the REST API
