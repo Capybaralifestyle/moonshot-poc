@@ -12,3 +12,4 @@ from .ux_agent import UXAgent
 from .data_scientist_agent import DataScientistAgent
 from .ai_coding_agent import AICodingAgent
 from .technical_agent import TechnicalAgent
+from .documentation_agent import DocumentationAgent

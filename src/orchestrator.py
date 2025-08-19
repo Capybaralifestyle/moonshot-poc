@@ -5,7 +5,7 @@ from typing import Callable, Dict, Any
 from src.agents import (
     ArchitectAgent, ProjectManagerAgent, CostEstimatorAgent,
     SecurityAgent, DevOpsAgent, PerformanceAgent, DataAgent, UXAgent,
-    DataScientistAgent, AICodingAgent, TechnicalAgent,
+    DataScientistAgent, AICodingAgent, TechnicalAgent, DocumentationAgent,
 )
 from src.export_to_excel import export_results_to_xls
 from src.export_to_pdf import export_text_to_pdf
@@ -45,6 +45,10 @@ class VerboseOrchestrator:
             "aicoding":    AICodingAgent(),
             "technical":   TechnicalAgent(),
         }
+        # Optional agents executed after core analysis
+        self.optional_agents: Dict[str, Any] = {
+            "documentation": DocumentationAgent(),
+        }
 
         self._xls_enabled = os.getenv("XLS_EXPORT_ENABLED", "false").lower() == "true"
         self._xls_path = os.getenv("XLS_EXPORT_PATH", "/workspace/results.xls")
@@ -54,10 +58,45 @@ class VerboseOrchestrator:
 
     def run(self, description: str, agents_to_run: list[str] | None = None) -> Dict[str, Any]:
         results: Dict[str, Any] = {}
+        # Run core agents
         for key, agent in self.agents.items():
             if agents_to_run and key not in agents_to_run:
                 continue
             prompt = agent.build_prompt({"description": description})
+            attempt = 0
+            while attempt < self.max_retries:
+                attempt += 1
+                if self.on_log:
+                    self.on_log(agent.name, prompt, f"🔄 calling LLM (attempt {attempt}/{self.max_retries}) …")
+                try:
+                    resp = self.llm.invoke(prompt).content
+                except Exception as e:
+                    resp = ""
+                    if self.on_log:
+                        self.on_log(agent.name, prompt, f"❌ LLM call failed: {e}")
+                    if attempt >= self._intervention_threshold and self.on_log:
+                        self.on_log(agent.name, prompt, "⚠️ Human intervention recommended.")
+                    continue
+
+                if self.on_log:
+                    self.on_log(agent.name, prompt, resp)
+
+                try:
+                    results[key] = json.loads(resp or "{}")
+                    break
+                except json.JSONDecodeError:
+                    results[key] = {"_error": f"Invalid JSON from {agent.name}", "raw": resp}
+                    if attempt >= self._intervention_threshold and self.on_log:
+                        self.on_log(agent.name, prompt, "⚠️ Human intervention recommended.")
+            else:
+                if self.on_log:
+                    self.on_log(agent.name, prompt, f"❌ Failed after {self.max_retries} attempts")
+
+        # Run optional agents after core results are available
+        for key, agent in self.optional_agents.items():
+            if not agents_to_run or key not in agents_to_run:
+                continue
+            prompt = agent.build_prompt({"description": description, "results": results})
             attempt = 0
             while attempt < self.max_retries:
                 attempt += 1
@@ -96,7 +135,10 @@ class VerboseOrchestrator:
                 if self.on_log:
                     self.on_log("Exporter", f"File={self._xls_path}", f"❌ Export failed: {e}")
 
-        doc = results.get("technical", {}).get("documentation")
+        doc = (
+            results.get("documentation", {}).get("documentation")
+            or results.get("technical", {}).get("documentation")
+        )
         if doc:
             try:
                 export_text_to_pdf(doc, self._pdf_path)
