@@ -1,4 +1,4 @@
-"""Command-line interface for Moonshot POC v0.6.2.
+"""Command-line interface for Moonshot POC v0.6.4.
 
 This script reads a PDF file containing a high-level project description, runs
 selected agents via the ``VerboseOrchestrator`` and prints verbose logs with
@@ -55,6 +55,7 @@ COLOR_MAP: Dict[str, str] = {
     "UX": Fore.LIGHTWHITE_EX,
     "DataScientist": Fore.LIGHTCYAN_EX,
     "AICoding": Fore.LIGHTGREEN_EX,
+    "Documentation": Fore.LIGHTBLUE_EX,
 }
 
 

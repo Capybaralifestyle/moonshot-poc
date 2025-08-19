@@ -146,6 +146,7 @@ def list_agents():
     return [
         "architect", "pm", "cost", "security",
         "devops", "performance", "data", "ux", "datasci", "aicoding",
+        "documentation",
     ]
 
 

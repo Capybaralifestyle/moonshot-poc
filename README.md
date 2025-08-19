@@ -1,12 +1,12 @@
-# Moonshot Alpha v0.6.2
+# Moonshot Alpha v0.6.4
 
 Moonshot Alpha is a modular, multi‑agent framework for **planning and estimating complex software projects**.  It combines conversational Large Language Model (LLM) prompts to produce actionable **architectural plans**, **project timelines**, **cost estimates**, **security recommendations**, and more.  The goal of this release is to provide a ready‑to‑run reference implementation that can be run locally or in Docker for experimentation, prototyping and education.
 
-**What’s new in v0.6.2:** Added TechnicalAgent to generate PDF technical documentation after estimation and updated versioning.
+**What’s new in v0.6.4:** Added optional DocumentationAgent for end‑of‑project technical documentation, updated UI and bumped version.
 
 ## Features
 
-* **Multi‑agent orchestration** – Runs up to eleven LLM‑driven agents in parallel to produce a holistic project plan. Agents can be batched or disabled to control cost, and each returns structured JSON for easy integration.
+* **Multi‑agent orchestration** – Runs up to twelve LLM‑driven agents in parallel, including an optional documentation agent, to produce a holistic project plan. Agents can be batched or disabled to control cost, and each returns structured JSON for easy integration.
 * **Cross‑platform CLI** – Script for running agents on a project description (`cli.py`). Prompts for the desired LLM, prints colourised logs to the terminal, and supports selecting a subset of agents via `--agents`.
 * **REST API** – A FastAPI service exposes endpoints for health checks, listing agents, running the orchestrator and (optionally) exporting results to an Excel `.xls` file.
 * **SaaS Web UI** – A Tailwind-styled front‑end served from the API at `/ui`. Users can select which agents to run, watch per‑agent progress bars, authenticate via Google (Supabase), export to XLS and view their latest predictions.
@@ -47,7 +47,8 @@ moonshot-poc-main/
 │   │   ├── ux_agent.py
 │   │   ├── data_scientist_agent.py
 │   │   ├── ai_coding_agent.py
-│   │   └── technical_agent.py
+│   │   ├── technical_agent.py
+│   │   └── documentation_agent.py
 ├── cli.py               # Run selected agents on a project description (PDF input)
 ├── export_to_excel.py  # Utility to flatten and export results as `.xls`
 ├── export_to_pdf.py    # Utility to save technical documentation as PDF
