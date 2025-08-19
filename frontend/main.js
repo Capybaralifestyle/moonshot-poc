@@ -28,8 +28,12 @@ async function fetchAgents() {
         const container = document.getElementById('agent-list');
         agents.forEach(agent => {
             const label = document.createElement('label');
-            label.className = 'flex items-center space-x-2';
-            label.innerHTML = `<input type="checkbox" value="${agent}" class="agent-checkbox" checked><span class="capitalize">${agent}</span>`;
+            label.className = 'flex items-center space-x-2 cursor-pointer';
+            label.innerHTML =
+                `<input type="checkbox" value="${agent}" class="sr-only peer agent-checkbox" checked>` +
+                `<div class="w-10 h-6 bg-gray-200 rounded-full peer-checked:bg-blue-600 relative transition-colors">` +
+                `<div class="absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-4"></div>` +
+                `</div><span class="capitalize">${agent}</span>`;
             container.appendChild(label);
         });
     } catch (err) {
