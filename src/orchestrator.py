@@ -5,7 +5,7 @@ from typing import Callable, Dict, Any
 from src.agents import (
     ArchitectAgent, ProjectManagerAgent, CostEstimatorAgent,
     SecurityAgent, DevOpsAgent, PerformanceAgent, DataAgent, UXAgent,
-    DataScientistAgent,
+    DataScientistAgent, AICodingAgent,
 )
 from src.export_to_excel import export_results_to_xls
 
@@ -41,6 +41,7 @@ class VerboseOrchestrator:
             "data":        DataAgent(),
             "ux":          UXAgent(),
             "datasci":     DataScientistAgent(),
+            "aicoding":    AICodingAgent(),
         }
 
         self._xls_enabled = os.getenv("XLS_EXPORT_ENABLED", "false").lower() == "true"

@@ -141,7 +141,7 @@ def health() -> Dict[str, str]:
 def list_agents():
     return [
         "architect", "pm", "cost", "security",
-        "devops", "performance", "data", "ux", "datasci",
+        "devops", "performance", "data", "ux", "datasci", "aicoding",
     ]
 
 

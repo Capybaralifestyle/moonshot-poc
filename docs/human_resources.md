@@ -13,6 +13,7 @@ This document outlines the human roles involved in the Moonshot project and high
 - **Data Engineer** – prepares data pipelines and storage strategies.
 - **UX Designer** – crafts user flows and interface guidelines.
 - **Data Scientist** – performs exploratory analysis and modelling.
+- **AI Coding Analyst** – identifies features suitable for AI automation.
 
 ## AI‑Delegable Work
 
@@ -24,3 +25,7 @@ According to SWE benchmark studies, many routine software engineering tasks can 
 - Refactoring suggestions and static analysis for existing modules.
 
 Critical architectural decisions, security reviews and final approvals should remain with human experts, but repetitive or well‑bounded tasks can be offloaded to the agents or other AI tools.
+
+## Estimated AI-Delegable Features
+
+Experience suggests roughly 30–50% of common features can be drafted by AI systems. Typical candidates include authentication modules, CRUD endpoints, test scaffolding, documentation templates, and data pipeline scaffolding.
