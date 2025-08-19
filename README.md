@@ -1,13 +1,13 @@
-# Moonshot Alpha v0.6
+# Moonshot Alpha v0.6.1
 
 Moonshot Alpha is a modular, multi‑agent framework for **planning and estimating complex software projects**.  It combines conversational Large Language Model (LLM) prompts to produce actionable **architectural plans**, **project timelines**, **cost estimates**, **security recommendations**, and more.  The goal of this release is to provide a ready‑to‑run reference implementation that can be run locally or in Docker for experimentation, prototyping and education.
 
-**What’s new in v0.6:** Refreshed SaaS UI using Tailwind and shadcn-style cards, selectable agents with per-agent progress bars, and version bump.
+**What’s new in v0.6.1:** Added CLI flag to run a subset of agents to control cost, refreshed SaaS UI using Tailwind and shadcn-style cards, selectable agents with per-agent progress bars, and version bump.
 
 ## Features
 
-* **Multi‑agent orchestration** – Runs ten LLM‑driven agents in parallel to produce a holistic project plan.  Each agent returns structured JSON for easy integration.
-* **Cross‑platform CLI** – Script for running all agents on a project description (`cli.py`).  Prompts for the desired LLM and prints colourised logs to the terminal.
+* **Multi‑agent orchestration** – Runs up to ten LLM‑driven agents in parallel to produce a holistic project plan. Agents can be batched or disabled to control cost, and each returns structured JSON for easy integration.
+* **Cross‑platform CLI** – Script for running agents on a project description (`cli.py`). Prompts for the desired LLM, prints colourised logs to the terminal, and supports selecting a subset of agents via `--agents`.
 * **REST API** – A FastAPI service exposes endpoints for health checks, listing agents, running the orchestrator and (optionally) exporting results to an Excel `.xls` file.
 * **SaaS Web UI** – A Tailwind-styled front‑end served from the API at `/ui`. Users can select which agents to run, watch per‑agent progress bars, authenticate via Google (Supabase), export to XLS and view their latest predictions.
 * **Supabase persistence (optional)** – When configured, results are **persisted per user** to a Supabase table after each run.  Users authenticate using Google OAuth via Supabase; the API verifies their JSON Web Token (JWT) and stores the description, user ID and JSON results in a `project_runs` table.  The endpoint (`/projects/latest`) returns the most recent prediction for each description for the authenticated user.
@@ -47,7 +47,7 @@ moonshot-poc-main/
 │   │   ├── ux_agent.py
 │   │   ├── data_scientist_agent.py
 │   │   └── ai_coding_agent.py
-├── cli.py               # Run all agents on a project description (PDF input)
+├── cli.py               # Run selected agents on a project description (PDF input)
 ├── export_to_excel.py  # Utility to flatten and export results as `.xls`
 ├── orchestrator.py      # VerboseOrchestrator coordinating all agents
 └── config.py            # Factory to create LLM clients for Ollama or cloud providers
@@ -166,11 +166,14 @@ docker compose run --rm cli -  # enter description interactively
 
 ### Main Orchestrator CLI
 
-Run all agents on a description (you will be prompted to choose a local or cloud model):
+Run agents on a description (you will be prompted to choose a local or cloud model):
 
 ```bash
 # Provide a PDF file with a high‑level project description
 docker compose run --rm cli path/to/description.pdf
+
+# Run only the architect and project manager agents to reduce cost
+docker compose run --rm cli my_project.pdf --agents architect,pm
 
 # Or omit the PDF and type the description interactively
 docker compose run --rm cli -
@@ -230,7 +233,7 @@ Navigate to <http://localhost:8000/ui> to use the web interface:
 ## Limitations and Future Work
 
 * **Experimental quality** – This is an early alpha release intended for exploration and experimentation.  Error handling, security, scalability and stability need further work for production use.
-* **LLM cost and latency** – Running many agents in parallel can be slow and expensive.  Consider batching or disabling agents as needed.
+* **LLM cost and latency** – Running many agents in parallel can be slow and expensive. Use the CLI `--agents` option or UI checkboxes to batch or disable agents as needed.
 * **Supabase policies** – You may need to customise row‑level security policies on the `project_runs` table depending on your use case.
 * **UI** – The SaaS front‑end is intentionally simple and may require customisation for enterprise use (e.g. styling, field validation, progress feedback).
 

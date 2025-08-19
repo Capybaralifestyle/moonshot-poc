@@ -1,12 +1,12 @@
-"""Command-line interface for Moonshot POC v0.6.
+"""Command-line interface for Moonshot POC v0.6.1.
 
-This script reads a PDF file containing a high-level project description, runs all
-registered agents via the VerboseOrchestrator, and prints verbose logs with
+This script reads a PDF file containing a high-level project description, runs
+selected agents via the ``VerboseOrchestrator`` and prints verbose logs with
 distinct colors for each agent. If the PDF lacks usable text, it prompts the
 user to enter a description manually. Optionally, it can export results to an
-Excel `.xls` file if enabled via CLI flag or environment variables. Before running,
-the user selects either a local Ollama model or a cloud provider (OpenAI,
-Anthropic, Kimi K2).
+Excel ``.xls`` file if enabled via CLI flag or environment variables. Before
+running, the user selects either a local Ollama model or a cloud provider
+(OpenAI, Anthropic, Kimi K2).
 """
 
 import argparse
@@ -124,6 +124,13 @@ def main(argv: list[str] | None = None) -> None:
     )
     parser.add_argument("pdf", help="Path to the PDF file with the project description.")
     parser.add_argument(
+        "--agents",
+        help=(
+            "Comma-separated list of agents to run (default: all)."
+            " Use to batch or disable agents to control cost."
+        ),
+    )
+    parser.add_argument(
         "--export",
         action="store_true",
         help="Override XLS_EXPORT_ENABLED and export results to an XLS file for this run.",
@@ -144,9 +151,11 @@ def main(argv: list[str] | None = None) -> None:
     if args.export is not None:
         orchestrator._xls_enabled = bool(args.export)
 
+    selected_agents = [a.strip() for a in args.agents.split(",")] if args.agents else None
+
     # Run agents on the description
     try:
-        results = orchestrator.run(description)
+        results = orchestrator.run(description, agents_to_run=selected_agents)
     except Exception as e:
         print(Fore.RED + f"An error occurred during processing: {e}" + Style.RESET_ALL)
         sys.exit(1)
