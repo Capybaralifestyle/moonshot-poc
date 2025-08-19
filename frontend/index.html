@@ -25,7 +25,11 @@
         <label for="description" class="block text-sm font-medium">Project description</label>
         <textarea id="description" rows="6" placeholder="Describe your project here..." class="mt-1 w-full border rounded p-2"></textarea>
 
-        <div id="agent-list" class="mt-4 grid grid-cols-2 gap-2"></div>
+        <div class="mt-4">
+          <label class="block text-sm font-medium">Agents</label>
+          <p class="text-gray-600 text-sm">Select which agents to run:</p>
+          <div id="agent-list" class="mt-2 grid grid-cols-2 gap-2"></div>
+        </div>
 
         <label class="flex items-center space-x-2 mt-4">
           <input type="checkbox" id="export-enabled" class="h-4 w-4">
