@@ -21,43 +21,79 @@ async function getSession() {
     return data.session || null;
 }
 
+async function fetchAgents() {
+    try {
+        const res = await fetch('/agents');
+        const agents = await res.json();
+        const container = document.getElementById('agent-list');
+        agents.forEach(agent => {
+            const label = document.createElement('label');
+            label.className = 'flex items-center space-x-2';
+            label.innerHTML = `<input type="checkbox" value="${agent}" class="agent-checkbox" checked><span class="capitalize">${agent}</span>`;
+            container.appendChild(label);
+        });
+    } catch (err) {
+        console.error('Failed to load agents', err);
+    }
+}
+
 async function runProject() {
     const desc = document.getElementById('description').value.trim();
     const exportEnabled = document.getElementById('export-enabled').checked;
     const msg = document.getElementById('run-msg');
     const resultsPre = document.getElementById('results');
+    const progressContainer = document.getElementById('progress-container');
     resultsPre.textContent = '';
+    progressContainer.innerHTML = '';
+
+    const selectedAgents = Array.from(document.querySelectorAll('.agent-checkbox:checked')).map(cb => cb.value);
     if (!desc) {
         msg.textContent = 'Please enter a project description.';
         msg.style.color = 'red';
         return;
     }
+    if (selectedAgents.length === 0) {
+        msg.textContent = 'Please select at least one agent.';
+        msg.style.color = 'red';
+        return;
+    }
     msg.textContent = 'Running agents…';
     msg.style.color = '';
+    const results = {};
     try {
         const session = await getSession();
         const headers = { 'Content-Type': 'application/json' };
         if (session) {
             headers['Authorization'] = 'Bearer ' + session.access_token;
         }
-        const body = {
-            description: desc,
-            export_enabled: exportEnabled
-        };
-        const res = await fetch('/run', {
-            method: 'POST',
-            headers,
-            body: JSON.stringify(body)
-        });
-        if (!res.ok) {
-            const text = await res.text();
-            throw new Error(text || 'Run failed');
+        for (const agent of selectedAgents) {
+            const card = document.createElement('div');
+            card.className = 'bg-white p-4 rounded-lg shadow';
+            card.innerHTML = `<h3 class="font-medium mb-2">${agent}</h3>` +
+                `<div class="w-full bg-gray-200 rounded-full h-2"><div class="bg-blue-500 h-2 rounded-full" id="bar-${agent}" style="width:0%"></div></div>`;
+            progressContainer.appendChild(card);
+
+            const body = {
+                description: desc,
+                export_enabled: exportEnabled,
+                agents: [agent]
+            };
+            const res = await fetch('/run', {
+                method: 'POST',
+                headers,
+                body: JSON.stringify(body)
+            });
+            if (!res.ok) {
+                const text = await res.text();
+                throw new Error(text || `Run failed for ${agent}`);
+            }
+            const data = await res.json();
+            results[agent] = data.results[agent];
+            document.getElementById(`bar-${agent}`).style.width = '100%';
         }
-        const data = await res.json();
-        resultsPre.textContent = JSON.stringify(data, null, 2);
+        resultsPre.textContent = JSON.stringify(results, null, 2);
         msg.textContent = 'Completed.';
         msg.style.color = 'green';
-        // Refresh history after a successful run
         await fetchHistory();
     } catch (err) {
         msg.textContent = 'Error: ' + err.message;
@@ -110,16 +146,16 @@ async function updateAuthUI() {
     const authInfo = document.getElementById('auth-info');
     const appContent = document.getElementById('app-content');
     if (session && session.user) {
-        loginBtn.style.display = 'none';
-        logoutBtn.style.display = 'inline-block';
+        loginBtn.classList.add('hidden');
+        logoutBtn.classList.remove('hidden');
         authInfo.textContent = session.user.email || session.user.id;
-        appContent.style.display = 'block';
+        appContent.classList.remove('hidden');
         await fetchHistory();
     } else {
-        loginBtn.style.display = 'inline-block';
-        logoutBtn.style.display = 'none';
+        loginBtn.classList.remove('hidden');
+        logoutBtn.classList.add('hidden');
         authInfo.textContent = '';
-        appContent.style.display = 'none';
+        appContent.classList.add('hidden');
     }
 }
 
@@ -135,4 +171,5 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('logout-btn').addEventListener('click', logout);
     // Populate history based on current auth state
     updateAuthUI();
+    fetchAgents();
 });
