@@ -1,4 +1,4 @@
-"""Command-line interface for Moonshot POC v0.6.1.
+"""Command-line interface for Moonshot POC v0.6.2.
 
 This script reads a PDF file containing a high-level project description, runs
 selected agents via the ``VerboseOrchestrator`` and prints verbose logs with
