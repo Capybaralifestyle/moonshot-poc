@@ -5,9 +5,10 @@ from typing import Callable, Dict, Any
 from src.agents import (
     ArchitectAgent, ProjectManagerAgent, CostEstimatorAgent,
     SecurityAgent, DevOpsAgent, PerformanceAgent, DataAgent, UXAgent,
-    DataScientistAgent, AICodingAgent,
+    DataScientistAgent, AICodingAgent, TechnicalAgent,
 )
 from src.export_to_excel import export_results_to_xls
+from src.export_to_pdf import export_text_to_pdf
 
 
 class VerboseOrchestrator:
@@ -42,10 +43,12 @@ class VerboseOrchestrator:
             "ux":          UXAgent(),
             "datasci":     DataScientistAgent(),
             "aicoding":    AICodingAgent(),
+            "technical":   TechnicalAgent(),
         }
 
         self._xls_enabled = os.getenv("XLS_EXPORT_ENABLED", "false").lower() == "true"
         self._xls_path = os.getenv("XLS_EXPORT_PATH", "/workspace/results.xls")
+        self._pdf_path = os.getenv("TECH_DOC_PATH", "/workspace/Technical Doc.pdf")
         self.max_retries = int(os.getenv("AGENT_MAX_RETRIES", "100"))
         self._intervention_threshold = int(self.max_retries * 0.75)
 
@@ -92,5 +95,15 @@ class VerboseOrchestrator:
             except Exception as e:
                 if self.on_log:
                     self.on_log("Exporter", f"File={self._xls_path}", f"❌ Export failed: {e}")
+
+        doc = results.get("technical", {}).get("documentation")
+        if doc:
+            try:
+                export_text_to_pdf(doc, self._pdf_path)
+                if self.on_log:
+                    self.on_log("Exporter", f"File={self._pdf_path}", "✅ Exported technical doc")
+            except Exception as e:
+                if self.on_log:
+                    self.on_log("Exporter", f"File={self._pdf_path}", f"❌ Technical doc export failed: {e}")
 
         return results

@@ -34,3 +34,6 @@ aiofiles>=23.0.0
 
 # Supabase client for persistence and authentication
 supabase>=1.0.0
+
+# PDF generation
+fpdf>=1.7.2
