@@ -49,9 +49,11 @@ class VerboseOrchestrator:
         self.max_retries = int(os.getenv("AGENT_MAX_RETRIES", "100"))
         self._intervention_threshold = int(self.max_retries * 0.75)
 
-    def run(self, description: str) -> Dict[str, Any]:
+    def run(self, description: str, agents_to_run: list[str] | None = None) -> Dict[str, Any]:
         results: Dict[str, Any] = {}
         for key, agent in self.agents.items():
+            if agents_to_run and key not in agents_to_run:
+                continue
             prompt = agent.build_prompt({"description": description})
             attempt = 0
             while attempt < self.max_retries:

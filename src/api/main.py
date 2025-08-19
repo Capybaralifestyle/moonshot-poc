@@ -126,6 +126,10 @@ class RunRequest(BaseModel):
         None,
         description="Override the XLS export flag for this run only."
     )
+    agents: Optional[List[str]] = Field(
+        None,
+        description="Subset of agents to run. Runs all if omitted.",
+    )
 
 
 class RunResponse(BaseModel):
@@ -165,7 +169,7 @@ def run(req: RunRequest, authorization: Optional[str] = Header(None)) -> RunResp
         orch._xls_enabled = bool(req.export_enabled)
 
     try:
-        results = orch.run(req.description)
+        results = orch.run(req.description, req.agents)
         _persist_run(user, req.description, results)
         return RunResponse(results=results)
     except Exception as e:
