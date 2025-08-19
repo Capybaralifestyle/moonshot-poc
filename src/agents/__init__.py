@@ -10,3 +10,4 @@ from .performance_agent import PerformanceAgent
 from .data_agent import DataAgent
 from .ux_agent import UXAgent
 from .data_scientist_agent import DataScientistAgent
+from .ai_coding_agent import AICodingAgent

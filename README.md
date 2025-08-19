@@ -1,17 +1,18 @@
-# Moonshot Alpha v0.4
+# Moonshot Alpha v0.5
 
 Moonshot Alpha is a modular, multi‑agent framework for **planning and estimating complex software projects**.  It combines conversational Large Language Model (LLM) prompts to produce actionable **architectural plans**, **project timelines**, **cost estimates**, **security recommendations**, and more.  The goal of this release is to provide a ready‑to‑run reference implementation that can be run locally or in Docker for experimentation, prototyping and education.
 
-**What’s new in v0.4:** `.xls` export replacing Google Sheets, up to 100 retries per agent with human intervention prompts after 75 attempts, and general robustness improvements.
+**What’s new in v0.5:** Added an AI Coding agent to estimate features suitable for delegation to automated code generation, and general robustness improvements.
 
 ## Features
 
-* **Multi‑agent orchestration** – Runs nine LLM‑driven agents in parallel to produce a holistic project plan.  Each agent returns structured JSON for easy integration.
+* **Multi‑agent orchestration** – Runs ten LLM‑driven agents in parallel to produce a holistic project plan.  Each agent returns structured JSON for easy integration.
 * **Cross‑platform CLI** – Script for running all agents on a project description (`cli.py`).  Prompts for the desired LLM and prints colourised logs to the terminal.
 * **REST API** – A FastAPI service exposes endpoints for health checks, listing agents, running the orchestrator and (optionally) exporting results to an Excel `.xls` file.
 * **SaaS Web UI** – A simple front‑end served from the API at `/ui`.  Users provide a project description and run the multi‑agent orchestrator directly from the browser.  The UI includes Google authentication via Supabase, can export results to XLS and displays the latest predictions for each user.
 * **Supabase persistence (optional)** – When configured, results are **persisted per user** to a Supabase table after each run.  Users authenticate using Google OAuth via Supabase; the API verifies their JSON Web Token (JWT) and stores the description, user ID and JSON results in a `project_runs` table.  The endpoint (`/projects/latest`) returns the most recent prediction for each description for the authenticated user.
 * **Dockerised deployment** – A `Dockerfile` and `docker-compose.yml` build reproducible images for the CLI/Jupyter (port 8888), API (port 8000) and Ollama model server.  No local Python installation is required.
+* **AI coding delegation analysis** – An AICoding agent identifies features that can be automated and estimates potential AI coverage.
 
 Additional role descriptions and AI delegation guidelines are available in `docs/human_resources.md`.
 
@@ -44,7 +45,8 @@ moonshot-poc-main/
 │   │   ├── performance_agent.py
 │   │   ├── data_agent.py
 │   │   ├── ux_agent.py
-│   │   └── data_scientist_agent.py
+│   │   ├── data_scientist_agent.py
+│   │   └── ai_coding_agent.py
 ├── cli.py               # Run all agents on a project description (PDF input)
 ├── export_to_excel.py  # Utility to flatten and export results as `.xls`
 ├── orchestrator.py      # VerboseOrchestrator coordinating all agents
@@ -190,7 +192,7 @@ curl -s http://localhost:8000/health
 
 ```bash
 curl -s http://localhost:8000/agents
-# → ["architect","pm","cost","security","devops","performance","data","ux","datasci"]
+# → ["architect","pm","cost","security","devops","performance","data","ux","datasci","aicoding"]
 ```
 
 ### Run All Agents
